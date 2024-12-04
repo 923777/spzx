@@ -27,4 +27,17 @@ public interface ProductService extends IService<Product> {
     List<ProductSku> selectProductSkuList(SkuQuery skuQuery);
 
 
+    ProductSku getProductSku(Long skuId);
+
+    Product getProduct(Long id);
+
+    SkuPrice getSkuPrice(Long skuId);
+
+    ProductDetails getProductDetails(Long id);
+
+    SkuStockVo getSkuStock(Long skuId);
+
+    Map<String, Long> getSkuSpecValue(Long id);
+
+    List<SkuPrice> getSkuPriceList(List<Long> skuIds);
 }

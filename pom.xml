@@ -237,6 +237,10 @@
         <module>spzx-modules</module>
         <module>spzx-api</module>
         <module>spzx-common</module>
+        <module>spzx-juc</module>
+        <module>spzx-modules/spzx-cart</module>
+        <module>spzx-api/spzx-api-cart</module>
+        <module>spzx-modules/spzx-order</module>
     </modules>
     <packaging>pom</packaging>
 

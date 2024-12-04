@@ -1,5 +1,7 @@
 package com.spzx.product.controller;
 
+
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.github.pagehelper.PageHelper;
 import com.spzx.common.core.constant.SecurityConstants;
 import com.spzx.common.core.domain.R;
@@ -64,6 +66,7 @@ public class ProductController extends BaseController {
 
     /**
      * 修改商品
+     *
      * @param product
      * @return
      */
@@ -91,12 +94,72 @@ public class ProductController extends BaseController {
                                     @PathVariable Integer pageSize,
                                     @ModelAttribute SkuQuery skuQuery) {
         //设置分页参数
-        PageHelper.startPage(pageNum,pageSize);
+        PageHelper.startPage(pageNum, pageSize);
         //调用service方法根据条件查询
         List<ProductSku> list = productService.selectProductSkuList(skuQuery);
 
         TableDataInfo dataTable = getDataTable(list);
         return R.ok(dataTable);
     }
+
+    @Operation(summary = "修改商品狀態")
+    @GetMapping("/updateAuditStatus/{id}/{status}")
+    public R updateAuditStatus(@PathVariable("id") long id, @PathVariable("status") long status) {
+        boolean update = productService.update(new LambdaUpdateWrapper<Product>().eq(Product::getId, id).set(Product::getAuditStatus, status));
+        return R.ok(update);
+    }
+
+    @Operation(summary = "获取商品sku信息")
+    @InnerAuth
+    @GetMapping(value = "/getProductSku/{skuId}")
+    public R<ProductSku> getProductSku(@PathVariable("skuId") Long skuId) {
+        return R.ok(productService.getProductSku(skuId));
+    }
+
+    @Operation(summary = "获取商品信息")
+    @InnerAuth
+    @GetMapping(value = "/getProduct/{id}")
+    public R<Product> getProduct(@PathVariable("id") Long id) {
+        return R.ok(productService.getProduct(id));
+    }
+
+    @Operation(summary = "获取商品sku最新价格信息")
+    @InnerAuth
+    @GetMapping(value = "/getSkuPrice/{skuId}")
+    public R<SkuPrice> getSkuPrice(@PathVariable("skuId") Long skuId) {
+        return R.ok(productService.getSkuPrice(skuId));
+    }
+
+    @Operation(summary = "获取商品详细信息")
+    @InnerAuth
+    @GetMapping(value = "/getProductDetails/{id}")
+    public R<ProductDetails> getProductDetails(@PathVariable("id") Long id) {
+        return R.ok(productService.getProductDetails(id));
+    }
+
+    @Operation(summary = "获取商品sku规则详细信息")
+    @InnerAuth
+    @GetMapping(value = "/getSkuSpecValue/{id}")
+    public R<Map<String, Long>> getSkuSpecValue(@PathVariable("id") Long id) {
+        Map<String, Long> map=    productService.getSkuSpecValue(id);
+        return R.ok(map);
+    }
+
+    @Operation(summary = "获取商品sku库存信息")
+    @InnerAuth
+    @GetMapping(value = "/getSkuStock/{skuId}")
+    public R<SkuStockVo> getSkuStock(@PathVariable("skuId") Long skuId) {
+        return R.ok(productService.getSkuStock(skuId));
+    }
+    @PostMapping("/getSkuPriceList")
+    @InnerAuth
+    @Operation(summary = "获取商品sku价格信息")
+    public R<List<SkuPrice>> getSkuPriceList(@RequestBody List<Long> skuIds){
+        List<SkuPrice> list = productService.getSkuPriceList(skuIds);
+        return R.ok(list);
+
+    };
+
+
 
 }

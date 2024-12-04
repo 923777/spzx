@@ -17,6 +17,7 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     private SkuStockMapper skuStockMapper;
     @Resource
     private ProductDetailsMapper productDetailsMapper;
+
 
     //查询商品列表
     @Override
@@ -102,7 +104,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         //2 根据商品id获取商品所有sku列表
         LambdaQueryWrapper<ProductSku> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ProductSku::getProductId,id);
+        wrapper.eq(ProductSku::getProductId, id);
         List<ProductSku> productSkuList = productSkuMapper.selectList(wrapper);
 
         //2.1 因为每个sku有对应库存量
@@ -127,7 +129,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         //2 拿着所有skuId集合查询库存表，对应库存信息
         LambdaQueryWrapper<SkuStock> wrapperSkuStock = new LambdaQueryWrapper<>();
-        wrapperSkuStock.in(SkuStock::getSkuId,skuIdList);
+        wrapperSkuStock.in(SkuStock::getSkuId, skuIdList);
         List<SkuStock> skuStockList = skuStockMapper.selectList(wrapperSkuStock);
 
         //3 第二步查询sku所有库存信息list ，转换map集合
@@ -150,7 +152,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         //4 根据商品id获取商品详情数据  图片列表
         LambdaQueryWrapper<ProductDetails> wrapperDetails = new LambdaQueryWrapper<>();
-        wrapperDetails.eq(ProductDetails::getProductId,id);
+        wrapperDetails.eq(ProductDetails::getProductId, id);
         ProductDetails productDetails = productDetailsMapper.selectOne(wrapperDetails);
 
         String imageUrls = productDetails.getImageUrls();
@@ -209,7 +211,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         //2 删除skuId，删除sku里面库存信息
         //获取商品所有skuId
         LambdaQueryWrapper<ProductSku> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(ProductSku::getProductId,ids);
+        wrapper.in(ProductSku::getProductId, ids);
         List<ProductSku> productSkuList = productSkuMapper.selectList(wrapper);
 
         //productSkuList  获取skuId值
@@ -218,7 +220,7 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
 
         //删除sku对应库存 删除条件 skuId
         LambdaQueryWrapper<SkuStock> wrapperSkuStock = new LambdaQueryWrapper<>();
-        wrapperSkuStock.in(SkuStock::getSkuId,skuIdList);
+        wrapperSkuStock.in(SkuStock::getSkuId, skuIdList);
         skuStockMapper.delete(wrapperSkuStock);
 
         //3 根据商品id删除product_sku
@@ -244,11 +246,65 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         return productSkuMapper.selectProductSkuList(skuQuery);
     }
 
-    @GuiguCache(prefix = "product:")
+    @GuiguCache(prefix = "getProductSku:")
     public ProductSku getProductSku(Long skuId) {
         return productSkuMapper.selectById(skuId);
     }
 
+    @GuiguCache(prefix = "getProduct:")
+    public Product getProduct(Long id) {
+        Product product = this.getById(id);
+        System.out.println("product = " + product);
+        return product;
+    }
+
+    @GuiguCache(prefix = "getSkuPrice:")
+    public SkuPrice getSkuPrice(Long skuId) {
+        ProductSku productSku = productSkuMapper.selectById(skuId);
+        SkuPrice skuPrice = new SkuPrice();
+        skuPrice.setSkuId(skuId);
+        skuPrice.setMarketPrice(productSku.getMarketPrice());
+        skuPrice.setSalePrice(productSku.getSalePrice());
+        return skuPrice;
+    }
+
+    @GuiguCache(prefix = "getProductDetails:")
+    public ProductDetails getProductDetails(Long id) {
+        ProductDetails productDetails = productDetailsMapper.selectOne(new LambdaQueryWrapper<ProductDetails>().eq(ProductDetails::getProductId, id));
+
+        return productDetails;
+    }
+
+    @GuiguCache(prefix = "getSkuStock:")
+    public SkuStockVo getSkuStock(Long skuId) {
+        SkuStock skuStock = skuStockMapper.selectOne(new LambdaQueryWrapper<SkuStock>().eq(SkuStock::getSkuId, skuId));
+        SkuStockVo skuStockVo = new SkuStockVo();
+        skuStockVo.setSkuId(skuId);
+        skuStockVo.setAvailableNum(skuStock.getAvailableNum());
+        skuStockVo.setSaleNum(skuStock.getSaleNum());
+        return skuStockVo;
+    }
+
+    @GuiguCache(prefix = "getSkuSpecValue:")
+    public Map<String, Long> getSkuSpecValue(Long id) {
+        System.out.println("id:"+id);
+        List<ProductSku> productSkus = productSkuMapper.selectList(new LambdaQueryWrapper<ProductSku>().eq(ProductSku::getProductId, id));
+        Map<String, Long> map = productSkus.stream().collect(Collectors.toMap(ProductSku::getSkuSpec, ProductSku::getId));
+        return map;
+    }
+
+    @Override
+    public List<SkuPrice> getSkuPriceList(List<Long> skuIds) {
+        List<ProductSku> productSkus = productSkuMapper.selectList(new LambdaQueryWrapper<ProductSku>().in(ProductSku::getId, skuIds));
+        List<SkuPrice> skuPrices = productSkus.stream().map(productSku -> {
+            SkuPrice skuPrice = new SkuPrice();
+            skuPrice.setSkuId(productSku.getId());
+            skuPrice.setMarketPrice(productSku.getMarketPrice());
+            skuPrice.setSalePrice(productSku.getSalePrice());
+            return skuPrice;
+        }).collect(Collectors.toList());
+        return skuPrices;
+    }
 
 
 }

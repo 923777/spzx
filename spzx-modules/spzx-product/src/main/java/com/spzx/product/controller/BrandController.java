@@ -31,7 +31,8 @@ public class BrandController extends BaseController {
     @Operation(summary = "获取全部品牌")
     @GetMapping("getBrandAll")
     public AjaxResult getBrandAll() {
-        return success(brandService.selectBrandAll());
+        List<Brand> brands = brandService.selectBrandAll();
+        return success(brands);
     }
 
     // [1,2,3]
