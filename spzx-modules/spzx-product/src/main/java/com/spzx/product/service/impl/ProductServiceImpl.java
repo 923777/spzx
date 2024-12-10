@@ -38,6 +38,8 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
     private SkuStockMapper skuStockMapper;
     @Resource
     private ProductDetailsMapper productDetailsMapper;
+    @Autowired
+    RedisTemplate redisTemplate;
 
 
     //查询商品列表
@@ -304,6 +306,99 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
             return skuPrice;
         }).collect(Collectors.toList());
         return skuPrices;
+    }
+
+    @Override
+    public String checkAndLock(List<SkuLockVo> skuLockVos, String orderNo) {
+        // 检查库存是否够用并且锁定库存信息，更新可用库存
+
+        // 分布库存式锁
+        String lockKey = "sku:checkAndLock:" + orderNo;// 防止同一个用户同一个订单出现重复提交的情况，重复锁定库存
+        // 库存锁对应库存数据
+        String dataKey = "sku:lock:data:" + orderNo;// 将锁定的库存信息存入redis，方便将来支付后解锁
+
+        // 防止重复提交订单的分布锁
+        Boolean aBoolean = redisTemplate.opsForValue().setIfAbsent(lockKey, 1, 30, TimeUnit.SECONDS);// 设置30秒过期时间，防止死锁
+        if (!aBoolean) {
+            return "fail";
+        }
+
+        // 更新mysql
+        for (SkuLockVo skuLockVo : skuLockVos) {
+            Integer skuNum = skuLockVo.getSkuNum();
+            Long skuId = skuLockVo.getSkuId();
+            int i = productSkuMapper.checkAndLock(skuId, skuNum);
+            if(i<=0){
+                return skuLockVo.getSkuId()+"库存不足";
+            }
+        }
+
+        // 更新库存成功后，将库存信息存入redis
+        redisTemplate.opsForValue().set(dataKey, JSON.toJSONString(skuLockVos));
+        redisTemplate.delete(lockKey);
+        return null;
+    }
+
+    @Override
+    public void unlock(String orderNo) {
+        // 分布库存式锁
+        String unlockKey = "sku:unLock:" + orderNo;// 防止同一个用户同一个订单出现重复提交的情况，重复锁定库存
+        // 库存锁对应库存数据
+        String dataKey = "sku:lock:data:" + orderNo;// 将锁定的库存信息存入redis，方便将来支付后解锁
+
+        // 防止重复提交订单的分布锁
+        Boolean aBoolean = redisTemplate.opsForValue().setIfAbsent(unlockKey, 1, 30, TimeUnit.SECONDS);// 设置30秒过期时间，防止死锁
+        if (!aBoolean) {
+            return ;
+        }
+        String o = (String)redisTemplate.opsForValue().get(dataKey);
+        List<SkuLockVo> skuLockVos = JSON.parseArray(o, SkuLockVo.class);
+
+
+        // 更新mysql
+        for (SkuLockVo skuLockVo : skuLockVos) {
+            Integer skuNum = skuLockVo.getSkuNum();
+            Long skuId = skuLockVo.getSkuId();
+            int i = productSkuMapper.unlock(skuId, skuNum);
+            if(i<=0){
+                return;
+            }
+        }
+
+        // 更新库存成功后，将库存信息存入redis
+        redisTemplate.delete(dataKey);
+        redisTemplate.delete(unlockKey);
+    }
+
+    @Override
+    public void minus(String orderNo) {
+        // 分布库存式锁
+        String minusLocklockKey = "sku:minusLock:" + orderNo;// 防止同一个用户同一个订单出现重复提交的情况，重复锁定库存
+        // 库存锁对应库存数据
+        String dataKey = "sku:lock:data:" + orderNo;// 将锁定的库存信息存入redis，方便将来支付后解锁
+
+        // 防止重复提交订单的分布锁
+        Boolean aBoolean = redisTemplate.opsForValue().setIfAbsent(minusLocklockKey, 1, 30, TimeUnit.SECONDS);// 设置30秒过期时间，防止死锁
+        if (!aBoolean) {
+            return ;
+        }
+        String o = (String)redisTemplate.opsForValue().get(dataKey);
+        List<SkuLockVo> skuLockVos = JSON.parseArray(o, SkuLockVo.class);
+
+
+        // 更新mysql
+        for (SkuLockVo skuLockVo : skuLockVos) {
+            Integer skuNum = skuLockVo.getSkuNum();
+            Long skuId = skuLockVo.getSkuId();
+            int i = productSkuMapper.minus(skuId, skuNum);
+            if(i<=0){
+                return;
+            }
+        }
+
+        // 更新库存成功后，将库存信息存入redis
+        redisTemplate.delete(dataKey);
+        redisTemplate.delete(minusLocklockKey);
     }
 
 

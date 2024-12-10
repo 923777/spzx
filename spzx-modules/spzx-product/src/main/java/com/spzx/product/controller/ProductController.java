@@ -159,7 +159,12 @@ public class ProductController extends BaseController {
         return R.ok(list);
 
     };
-
+    @InnerAuth
+    @PostMapping(value = "/checkAndLock/{orderNo}")
+    R<String> checkAndLock(@RequestBody List<SkuLockVo> skuLockVos,@PathVariable("orderNo") String orderNo){
+        String errMsg = productService.checkAndLock(skuLockVos,orderNo);
+        return R.ok(errMsg);
+    }
 
 
 }

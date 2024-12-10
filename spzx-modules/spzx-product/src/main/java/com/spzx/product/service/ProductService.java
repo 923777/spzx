@@ -40,4 +40,12 @@ public interface ProductService extends IService<Product> {
     Map<String, Long> getSkuSpecValue(Long id);
 
     List<SkuPrice> getSkuPriceList(List<Long> skuIds);
+
+
+
+    String checkAndLock(List<SkuLockVo> skuLockVos, String orderNo);
+
+    void unlock(String orderNo);
+
+    void minus(String orderNo);
 }

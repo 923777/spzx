@@ -42,4 +42,6 @@ public interface RemoteProductService {
     public R<SkuStockVo> getSkuStock(@PathVariable("skuId") Long skuId, @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
     @PostMapping(value="product/getSkuPriceList")
     public R<List<SkuPrice>> getSkuPriceList(@RequestBody List<Long> skuIds, @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
+    @PostMapping(value = "/product/checkAndLock/{orderNo}")
+    R<String> checkAndLock(@PathVariable("orderNo") String orderNo,@RequestBody List<SkuLockVo> skuLockVos, @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
 }
